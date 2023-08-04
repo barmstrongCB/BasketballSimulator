@@ -24,8 +24,8 @@ namespace NBASimulator.Controllers
         public void RunGame()
         {
             // HARDCODED. Will be replaced w/ form input
-            int teamOneId = 7;
-            int teamTwoId = 1;
+            int teamOneId = 3;
+            int teamTwoId = 2;
             GameLogic gameLogic = new GameLogic(_context);
 
             Team t1 = _context.Teams.SingleOrDefault(x => x.Id == teamOneId);

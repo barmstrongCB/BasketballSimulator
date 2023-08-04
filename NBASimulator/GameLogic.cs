@@ -492,8 +492,7 @@ namespace NBASimulator
                             {
                                 holdBall = WhoGets(noBallTeamId, "Rbd");
                                 AddStat(holdBall, "Reb", curGame.Id, 1);
-                                Console.WriteLine(forLog + ".  " +
-                                    "" + GetPlayerName(holdBall) + " gets the rebound.");
+                                forLog += ".  " + GetPlayerName(holdBall) + " gets the rebound.";
                                 playDone = true;
                                 playCount++;
                                 (hasBallTeamId, noBallTeamId) = (noBallTeamId, hasBallTeamId);
@@ -506,6 +505,13 @@ namespace NBASimulator
                             {
                                 holdBall = WhoGets(hasBallTeamId, "Rbd");
                                 AddStat(holdBall, "Reb", curGame.Id, 1);
+                                Player rebPass = _context.Players.SingleOrDefault(x => x.Id == holdBall);
+                                if (rebPass.PlayLikely < .2)
+                                {
+                                    holdBall = WhoGets(hasBallTeamId, "Play");
+                                    forLog += " Passes to " + GetPlayerName(holdBall);
+                                }
+                                Console.WriteLine(forLog);
                             }
                         }
                     }
