@@ -249,7 +249,16 @@ namespace NBASimulator
             Random rndm = new();
             double rndmRes = 0;
 
-            Game curGame = new();
+            Game curGame = new()
+            {
+                TeamOneId = allPlayers[0].TeamId,
+                TeamTwoId = allPlayers[5].TeamId,
+                TeamOnePts = 0,
+                TeamTwoPts = 0,
+                TeamOneW = false,
+                TeamTwoW = false,
+                Tie = false
+            };
             curGame.TeamOneId = allPlayers[0].TeamId;
             curGame.TeamTwoId = allPlayers[5].TeamId;
             _context.Add(curGame);
@@ -301,6 +310,7 @@ namespace NBASimulator
             double sumBlkOne = 0;
             double sumBlkTwo = 0;
             int totalPlays = 200;
+            int whoPassed = 0;
 
             foreach (Player sumP in allPlayers.Where(x => x.TeamId == teamOneId))
             {
@@ -415,6 +425,7 @@ namespace NBASimulator
 
                     if (passBall)
                     {
+                        whoPassed = holdBall;
                         string strPass = GetPlayerName(holdBall);
                         holdBall = WhoGets(hasBallTeamId, "Play", holdBall);
                         Console.WriteLine(strPass + " passes to " + GetPlayerName(holdBall));
@@ -425,6 +436,8 @@ namespace NBASimulator
                         List<int> shotMade = WillShoot(holdBall, teamOneId, teamTwoId, hasBallTeamId);
                         if (shotMade[0] > 0)
                         {
+                            if (whoPassed != 0)
+                                AddStat(whoPassed, "Ast", curGame.Id, 1);
                             if (shotMade[0] == 2)
                             {
                                 AddStat(holdBall, "Sa2", curGame.Id, 1);
@@ -442,6 +455,7 @@ namespace NBASimulator
                             }
                             playDone = true;
                             holdBall = 0;
+                            whoPassed = 0;
                             playCount++;
                             (hasBallTeamId, noBallTeamId) = (noBallTeamId, hasBallTeamId);
 
@@ -497,6 +511,20 @@ namespace NBASimulator
                     }
                 }
             }
+            curGame.TeamOnePts = teamOnePointTotal;
+            curGame.TeamTwoPts = teamTwoPointTotal;
+            if (teamOnePointTotal != teamTwoPointTotal)
+            {
+                if (teamOnePointTotal > teamTwoPointTotal)
+                    curGame.TeamOneW = true;
+                else
+                    curGame.TeamTwoW = true;
+            }
+            else
+                curGame.Tie = true;
+
+            _context.Update(curGame);
+            _context.SaveChanges();
         }
 
         public bool tovCheck(int holdBall)
