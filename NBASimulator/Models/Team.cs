@@ -12,4 +12,8 @@ public partial class Team
     public int? YearOrigin { get; set; }
 
     public bool? NeedCalc { get; set; }
+
+    public int Win { get; set; }
+
+    public int Loss { get; set; }
 }

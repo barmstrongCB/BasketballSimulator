@@ -18,14 +18,11 @@ namespace NBASimulator
             public string BoostName { get; set; }
             public double BoostVal { get; set; }
         }
-
         public void CalcStats(int teamId)
         {
             //Teams will have a NeedCalc bool field on %db. 
             //This is turned on by events like: re-ordering priorities on players, change of roster, season initialization, etc...
             //Once this runs, NeedCalc is updated to 0.
-
-            List<PlayerViewModel> playerList = new();
 
             List<Player> playersTeam = _context.Players
                 .Where(x => x.TeamId == teamId)
@@ -242,26 +239,19 @@ namespace NBASimulator
         }
 
         public string gameResults { get; set; }
-        public void GameLoop(List<Player> allPlayers)
+        public void GameLoop(List<Player> allPlayers, Game curGame)
         {
             //setting initial conditions
 
             Random rndm = new();
             double rndmRes = 0;
 
-            Game curGame = new()
-            {
-                TeamOneId = allPlayers[0].TeamId,
-                TeamTwoId = allPlayers[5].TeamId,
-                TeamOnePts = 0,
-                TeamTwoPts = 0,
-                TeamOneW = false,
-                TeamTwoW = false,
-                Tie = false
-            };
-            curGame.TeamOneId = allPlayers[0].TeamId;
-            curGame.TeamTwoId = allPlayers[5].TeamId;
-            _context.Add(curGame);
+            curGame.TeamOnePts = 0;
+            curGame.TeamTwoPts = 0;
+            curGame.TeamOneW = false;
+            curGame.TeamTwoW = false;
+            curGame.Tie = false;
+            _context.Update(curGame);
             _context.SaveChanges();
 
             List<Statline> masterStatline = new();
@@ -309,7 +299,7 @@ namespace NBASimulator
             double sumStealTwo = 0;
             double sumBlkOne = 0;
             double sumBlkTwo = 0;
-            int totalPlays = 200;
+            int totalPlays = 190;
             int whoPassed = 0;
 
             foreach (Player sumP in allPlayers.Where(x => x.TeamId == teamOneId))
@@ -328,7 +318,7 @@ namespace NBASimulator
 
 
 
-            while (playCount < totalPlays)
+            while (playCount < totalPlays || teamOnePointTotal == teamTwoPointTotal)
             {
                 playDone = false;
 
@@ -433,7 +423,7 @@ namespace NBASimulator
                     }
                     else
                     {
-                        List<int> shotMade = WillShoot(holdBall, teamOneId, teamTwoId, hasBallTeamId);
+                        List<int> shotMade = WillShoot(holdBall, teamOneId, teamTwoId, hasBallTeamId, whoPassed);
                         if (shotMade[0] > 0)
                         {
                             if (whoPassed != 0)
@@ -493,6 +483,12 @@ namespace NBASimulator
                                 holdBall = WhoGets(noBallTeamId, "Rbd");
                                 AddStat(holdBall, "Reb", curGame.Id, 1);
                                 forLog += ".  " + GetPlayerName(holdBall) + " gets the rebound.";
+                                Player rebPass = _context.Players.SingleOrDefault(x => x.Id == holdBall);
+                                if (rebPass.PlayLikely < .2)
+                                {
+                                    holdBall = WhoGets(noBallTeamId, "Play");
+                                    forLog += " Passes to " + GetPlayerName(holdBall);
+                                }
                                 playDone = true;
                                 playCount++;
                                 (hasBallTeamId, noBallTeamId) = (noBallTeamId, hasBallTeamId);
@@ -505,32 +501,47 @@ namespace NBASimulator
                             {
                                 holdBall = WhoGets(hasBallTeamId, "Rbd");
                                 AddStat(holdBall, "Reb", curGame.Id, 1);
+                                forLog += " " + GetPlayerName(holdBall) + " gets the rebound.";
                                 Player rebPass = _context.Players.SingleOrDefault(x => x.Id == holdBall);
                                 if (rebPass.PlayLikely < .2)
                                 {
                                     holdBall = WhoGets(hasBallTeamId, "Play");
                                     forLog += " Passes to " + GetPlayerName(holdBall);
                                 }
-                                Console.WriteLine(forLog);
                             }
+                            Console.WriteLine(forLog);
                         }
                     }
                 }
             }
             curGame.TeamOnePts = teamOnePointTotal;
             curGame.TeamTwoPts = teamTwoPointTotal;
+            Team tOne = _context.Teams.SingleOrDefault(x => x.Id == curGame.TeamOneId);
+            Team tTwo = _context.Teams.SingleOrDefault(x => x.Id == curGame.TeamTwoId);
+
             if (teamOnePointTotal != teamTwoPointTotal)
             {
                 if (teamOnePointTotal > teamTwoPointTotal)
+                {
                     curGame.TeamOneW = true;
+                    tOne.Win++;
+                    tTwo.Loss++;
+                }
                 else
+                {
                     curGame.TeamTwoW = true;
+                    tTwo.Win++;
+                    tOne.Loss++;
+                }
             }
             else
                 curGame.Tie = true;
 
             _context.Update(curGame);
+            _context.Update(tTwo);
+            _context.Update(tOne);
             _context.SaveChanges();
+
         }
 
         public bool tovCheck(int holdBall)
@@ -603,9 +614,16 @@ namespace NBASimulator
                 return false;
         }
 
-        public List<int> WillShoot(int holdBall, int teamOneId, int teamTwoId, int hasBallTeamId)
+        public List<int> WillShoot(int holdBall, int teamOneId, int teamTwoId, int hasBallTeamId, int whoPassed)
         {
             Player playerTest = _context.Players.SingleOrDefault(b => b.Id == holdBall);
+            double astBoost = 1;
+            
+            if(whoPassed != 0)
+            {
+                Player playerPassed = _context.Players.SingleOrDefault(b => b.Id == whoPassed);
+                astBoost = (double)playerPassed.AstBonus;
+            }
 
             List<TeamBoosts> bothTeams = CalcTeamBoosts(teamOneId, teamTwoId);
 
@@ -621,7 +639,7 @@ namespace NBASimulator
             {
                 Console.WriteLine(GetPlayerName(holdBall) + " shoots a 2...");
                 rndmRes = rndm.NextDouble();
-                double fg2Boost = (double)playerTest.Fg2pct * shotBoost.BoostVal;
+                double fg2Boost = (double)playerTest.Fg2pct * shotBoost.BoostVal * astBoost;
                 if (rndmRes < fg2Boost)
                 {
                     List<int> list = new List<int>() { 2, 2 };
@@ -637,7 +655,7 @@ namespace NBASimulator
             {
                 Console.WriteLine(GetPlayerName(holdBall) + " shoots a 3...");
                 rndmRes = rndm.NextDouble();
-                double fg3Boost = (double)playerTest.Fg3pct * shotBoost.BoostVal;
+                double fg3Boost = (double)playerTest.Fg3pct * shotBoost.BoostVal * astBoost;
                 if (rndmRes < fg3Boost)
                 {
                     List<int> list = new List<int>() { 3, 3 };

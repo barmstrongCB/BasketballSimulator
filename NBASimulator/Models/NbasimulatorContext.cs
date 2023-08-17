@@ -21,6 +21,8 @@ public partial class NbasimulatorContext : DbContext
 
     public virtual DbSet<Player> Players { get; set; }
 
+    public virtual DbSet<SeasonStat> SeasonStats { get; set; }
+
     public virtual DbSet<Statline> Statlines { get; set; }
 
     public virtual DbSet<Team> Teams { get; set; }
@@ -45,6 +47,7 @@ public partial class NbasimulatorContext : DbContext
             entity.ToTable("Pick");
 
             entity.Property(e => e.Id).HasColumnName("ID");
+            entity.Property(e => e.RoundNum).HasDefaultValueSql("((1))");
             entity.Property(e => e.TeamId).HasColumnName("TeamID");
             entity.Property(e => e.TradedToTeamId).HasColumnName("TradedToTeamID");
         });
@@ -75,6 +78,11 @@ public partial class NbasimulatorContext : DbContext
             entity.Property(e => e.Stl).HasColumnName("STL");
             entity.Property(e => e.TeamId).HasColumnName("TeamID");
             entity.Property(e => e.Tov).HasColumnName("TOV");
+        });
+
+        modelBuilder.Entity<SeasonStat>(entity =>
+        {
+            entity.ToTable("SeasonStat");
         });
 
         modelBuilder.Entity<Statline>(entity =>

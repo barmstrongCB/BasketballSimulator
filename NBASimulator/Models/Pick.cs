@@ -11,6 +11,8 @@ public partial class Pick
 
     public int TeamId { get; set; }
 
+    public int RoundNum { get; set; }
+
     public int? PickNum { get; set; }
 
     public int? TradedToTeamId { get; set; }

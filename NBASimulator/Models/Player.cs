@@ -62,4 +62,6 @@ public partial class Player
     public double? StlLikely { get; set; }
 
     public double? BlkLikely { get; set; }
+
+    public double? AstBonus { get; set; }
 }
